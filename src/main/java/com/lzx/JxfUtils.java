@@ -84,6 +84,8 @@ public class JxfUtils {
 
     public static void createData(String path) {
 
+
+
         /** 词根txt */
         File cgTxt  = new File(path + Main.properties.getProperty(Constants.CGFileName));
         /** 主词txt */
@@ -139,33 +141,83 @@ public class JxfUtils {
         for (int i = 1; i <= Integer.valueOf(Main.properties.getProperty(Constants.RESULTFILESIZE)); i++) {
             StringBuffer sb = new StringBuffer();
             int zcIndex = 0;
-            cgIndex = new ArrayList<>();
             for (int j = 0; j < titleSize; j++) {
-                String zc = zcList.get(zcIndex);
+                String zc;
+                cgIndex = new ArrayList<>();
+                try {
+                    zc = zcList.get(zcIndex);
+                } catch ( Exception e) {
+                    zc = zcList.get(new Random().nextInt(zcList.size()));
+                }
                 StringBuffer title = new StringBuffer();
                 title.append(zc);
                 List<String> cgUnInZc = new ArrayList<>();
-                cgList.forEach(cg->{
-                    if (-1 == zc.indexOf(cg)) {
-                        cgUnInZc.add(cg);
+                for (String s : cgList) {
+                    if (-1 == zc.indexOf(s)) {
+                        cgUnInZc.add(s);
                     }
-                });
+                }
+                /** 检查字根重复 */
+                List<String> usedCg = new ArrayList<>();
+                for (String s : cgUnInZc) {
+                    boolean add = true;
+                    for (String a: cgUnInZc) {
+                        if (!s.equals(a) && -1 != s.indexOf(a)) {
+                            add = false;
+                            break;
+                        }
+                    }
+                    if (add) {
+                        usedCg.add(s);
+                    }
+                }
+
+                int smallerSize = 0;
+                for (String s : usedCg) {
+                    if (smallerSize == 0) {
+                        smallerSize = s.length();
+                    } else {
+                        if (smallerSize > s.length()) {
+                            smallerSize = s.length();
+                        }
+                    }
+                }
+
                 while (title.length() < 30) {
                     Random random = new Random();
-                    Integer cgOutIndex = random.nextInt(cgUnInZc.size());
+                    Integer cgOutIndex = random.nextInt(usedCg.size());
                     while (cgIndex.contains(cgOutIndex)) {
-                        cgOutIndex = random.nextInt(cgUnInZc.size());
+                        cgOutIndex = random.nextInt(usedCg.size());
                     }
                     cgIndex.add(cgOutIndex);
-                    if (cgIndex.size() == cgUnInZc.size()) {
+                    if (cgIndex.size() == usedCg.size()) {
                         cgIndex.clear();
                     }
-                    title.append(cgUnInZc.get(cgOutIndex));
+                    title.append(usedCg.get(cgOutIndex));
                     if (title.length() > 30) {
-                        title.delete(title.length() - cgList.get(cgOutIndex).length(), title.length());
+                        title.delete(title.length() - usedCg.get(cgOutIndex).length(), title.length());
                         break;
                     }
                 }
+                Integer titlePlusSmallerSize = title.length() + smallerSize;
+                if (titlePlusSmallerSize <= 30) {
+                    List<String> addLast = new ArrayList<>();
+                    for (String s : usedCg) {
+                        if (-1 == title.indexOf(s) && s.length() == smallerSize) {
+                            addLast.add(s);
+                        }
+                    }
+                    if (addLast.size() > 0) {
+                        while (title.length() < 30) {
+                            title.append(addLast.get(new Random().nextInt(addLast.size())));
+                            if (title.length() > 30) {
+                                title.delete(title.length() - smallerSize,title.length());
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 sb.append(title).append(System.getProperty("line.separator"));
                 if (j % zcCount == 0 && j != 0) {
                     zcIndex++;
@@ -230,8 +282,9 @@ public class JxfUtils {
         if (!outFile.exists()) {
             outFile.mkdirs();
         }
+        String outTxtName = new File(path).getName();
         for (int i = 1; i <= stringBuffers.size(); i++) {
-            exportTxt(stringBuffers.get(i - 1),outFile.getPath() + "\\" + i);
+            exportTxt(stringBuffers.get(i - 1),outFile.getPath() + "\\" + outTxtName + i);
         }
         System.out.println("success!!!");
     }
