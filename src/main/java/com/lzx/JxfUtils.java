@@ -19,6 +19,8 @@ import java.util.*;
  * @date 2020/4/15 11:30
  */
 public class JxfUtils {
+	
+	private static StringBuffer sbBuffer = new StringBuffer();
 
     public static String getRequest(String url) {
         // 输入流
@@ -84,8 +86,79 @@ public class JxfUtils {
 
     public static void createData(String path) {
 
+    	File mainFile = new File(path);
+    	File[] files = mainFile.listFiles();
+    	for (int i = 0; i < files.length; i++) {
+			if (!files[i].isDirectory()) {
+				continue;
+			}
+			JxfUtils.createOne(files[i].getPath() + "\\");
+		}
+    	if (sbBuffer.length() > 0) {
+    		SendEmailByQQ sendEmailByQQ = new SendEmailByQQ();
+            sendEmailByQQ.setContent(sbBuffer.toString());
+            sendEmailByQQ.setAuthorizationCode(Main.properties.getProperty(Constants.AuthorizationCode));
+            sendEmailByQQ.setProtocol(Main.properties.getProperty(Constants.EMAILPROTOCOL));
+            sendEmailByQQ.setHost(Main.properties.getProperty(Constants.EMAILHOST));
+            sendEmailByQQ.setAuth(Main.properties.getProperty(Constants.EMAILAUTH));
+            sendEmailByQQ.setPort(Integer.valueOf(Main.properties.getProperty(Constants.EMAILPORT)));
+            sendEmailByQQ.setSslEnable(Main.properties.getProperty(Constants.EMAILSSLENABLE));
+            sendEmailByQQ.setDebug(Main.properties.getProperty(Constants.EMAILDEBUG));
+            sendEmailByQQ.setReceiveEmail(Main.properties.getProperty(Constants.EMAILRECEIVEURL));
+            sendEmailByQQ.setFromEmail(Main.properties.getProperty(Constants.EMAILFROMURL));
+            new Thread(sendEmailByQQ).run();
+            System.out.println("success!!!");
+		} else {
+			System.out.println("error!!!");
+		}
+    	
+    }
 
+    private static Set<String> readTxt(File txtFile) throws Exception {
+        Set<String> txtData = new TreeSet<>();
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(txtFile),getCode(txtFile)));
+        String line;
+        while (null != (line = br.readLine())) {
+            line = line.replace(" ","");
+            line = line.replace("\\ufeff","");
+            line = line.replace("\\UFEFF","");
+            txtData.add(line.trim());
+        }
+        if (null != br) {
+			br.close();
+		}
+        return txtData;
+    }
 
+    private static void exportTxt(StringBuffer data,String path) {
+        File file = new File(path+".txt");
+        try {
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+            bw.write(data.toString());
+            bw.flush();
+            bw.close();
+        } catch (IOException e) {
+            System.out.println("write err");
+        }
+    }
+
+    public static String getCode(File path) throws Exception {
+        InputStream inputStream = new FileInputStream(path);
+        byte[] head = new byte[3];
+        inputStream.read(head);
+        String code = "GBK";  //或GBK
+        if (head[0] == -1 && head[1] == -2 )
+            code = "UTF-16";
+        else if (head[0] == -2 && head[1] == -1 )
+            code = "Unicode";
+        else if(head[0]==-17 && head[1]==-69 && head[2] ==-65)
+            code = "UTF-8";
+        inputStream.close();
+        return code;
+    }
+    
+    public static void createOne(String path) {
+    	
         /** 词根txt */
         File cgTxt  = new File(path + Main.properties.getProperty(Constants.CGFileName));
         /** 主词txt */
@@ -100,6 +173,8 @@ public class JxfUtils {
         try {
             cgs = readTxt(cgTxt);
             zcs = readTxt(zcTxt);
+            cgTxt.delete();
+            zcTxt.delete();
         } catch (FileNotFoundException e) {
             System.out.println("cant find file :" + e.getMessage());
             return;
@@ -266,66 +341,15 @@ public class JxfUtils {
         }
         emailContent.append(System.getProperty("line.separator"));
         stringBuffers.forEach(t-> emailContent.append(t));
-        SendEmailByQQ sendEmailByQQ = new SendEmailByQQ();
-        sendEmailByQQ.setContent(emailContent.toString());
-        sendEmailByQQ.setAuthorizationCode(Main.properties.getProperty(Constants.AuthorizationCode));
-        sendEmailByQQ.setProtocol(Main.properties.getProperty(Constants.EMAILPROTOCOL));
-        sendEmailByQQ.setHost(Main.properties.getProperty(Constants.EMAILHOST));
-        sendEmailByQQ.setAuth(Main.properties.getProperty(Constants.EMAILAUTH));
-        sendEmailByQQ.setPort(Integer.valueOf(Main.properties.getProperty(Constants.EMAILPORT)));
-        sendEmailByQQ.setSslEnable(Main.properties.getProperty(Constants.EMAILSSLENABLE));
-        sendEmailByQQ.setDebug(Main.properties.getProperty(Constants.EMAILDEBUG));
-        sendEmailByQQ.setReceiveEmail(Main.properties.getProperty(Constants.EMAILRECEIVEURL));
-        sendEmailByQQ.setFromEmail(Main.properties.getProperty(Constants.EMAILFROMURL));
-        new Thread(sendEmailByQQ).run();
-        File outFile = new File(path + "out");
+        File outFile = new File(path);
         if (!outFile.exists()) {
             outFile.mkdirs();
         }
+        sbBuffer.append(emailContent);
         String outTxtName = new File(path).getName();
         for (int i = 1; i <= stringBuffers.size(); i++) {
             exportTxt(stringBuffers.get(i - 1),outFile.getPath() + "\\" + outTxtName + i);
         }
-        System.out.println("success!!!");
-    }
-
-    private static Set<String> readTxt(File txtFile) throws Exception {
-        Set<String> txtData = new TreeSet<>();
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(txtFile),getCode(txtFile)));
-        String line;
-        while (null != (line = br.readLine())) {
-            line = line.replace(" ","");
-            line = line.replace("\\ufeff","");
-            line = line.replace("\\UFEFF","");
-            txtData.add(line.trim());
-        }
-        return txtData;
-    }
-
-    private static void exportTxt(StringBuffer data,String path) {
-        File file = new File(path+".txt");
-        try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-            bw.write(data.toString());
-            bw.flush();
-            bw.close();
-        } catch (IOException e) {
-            System.out.println("write err");
-        }
-    }
-
-    public static String getCode(File path) throws Exception {
-        InputStream inputStream = new FileInputStream(path);
-        byte[] head = new byte[3];
-        inputStream.read(head);
-        String code = "GBK";  //或GBK
-        if (head[0] == -1 && head[1] == -2 )
-            code = "UTF-16";
-        else if (head[0] == -2 && head[1] == -1 )
-            code = "Unicode";
-        else if(head[0]==-17 && head[1]==-69 && head[2] ==-65)
-            code = "UTF-8";
-        inputStream.close();
-        return code;
-    }
+        System.out.println(String.format("----%s----", "执行完毕" + path));
+	}
 }

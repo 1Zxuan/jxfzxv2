@@ -58,7 +58,8 @@ public class SendEmailByQQ implements Runnable {
             transport.sendMessage(message,message.getAllRecipients());
             transport.close();
         } catch (MessagingException e) {
-            System.out.println("errCode" + -1);
+        	e.getStackTrace();
+            System.out.println("MessagingException:" + e.getMessage());
         }
     }
 
